@@ -1,88 +1,92 @@
 <script>
-    import { onMount } from "svelte";
-    import TodoItem from "./Todo-item.svelte";
+    import editImg from "../assets/edit.png";
+    import deleteImg from "../assets/delete.png";
+    let {
+        tasks,
+        toggleDone,
+        deleteTask,
+        startEditing,
+        finishEditing,
+        cancelEditing,
+        editingTaskId,
+    } = $props();
+    let editedText = $state("");
 
-    let todos = [];
-    let newTaskText = "";
-
-    onMount(() => {
-        fetch("http://localhost:3000/todos")
-            .then((res) => res.json())
-            .then((data) => {
-                todos = data;
-            });
+    $effect(() => {
+        if (editingTaskId !== null) {
+            const task = tasks.find((t) => t.id === editingTaskId);
+            if (task) {
+                editedText = task.text;
+            }
+        }
     });
 
-    const addTask = () => {
-        if (!newTaskText.trim()) return;
-
-        let newTask = {
-            text: newTaskText,
-            status: "to do",
-        };
-
-        fetch("http://localhost:3000/todos", {
-            method: "POST",
-            headers: {
-                "Content-type": "application/json",
-            },
-            body: JSON.stringify(newTask),
-        })
-            .then((res) => res.json())
-            .then((data) => {
-                todos = [...todos, data];
-                newTaskText = "";
-            })
-            .catch((err) => console.log(err));
+    const handleEditSubmit = (id, e) => {
+        if (e.key === "Enter") {
+            finishEditing(id, editedText);
+        } else if (e.key === "Escape") {
+            cancelEditing();
+        }
     };
-
-    const handleSubmit = (e) => {
-        e.preventDefault();
-        addTask();
-    };
-
-
-    // const deleteTask = (id) => {
-        
-    // }
-
-
 </script>
 
-<div
-    class="flex flex-col w-[500px] min-h-[600px] bg-gray-200 rounded-4xl shadow-lg p-12 relative"
->
-    <h2 class="font-semibold text-[#242424] text-2xl">My Todo App</h2>
-    <div class="flex flex-col mt-4">
-        <!-- FORM -->
-        <form class="relative" onsubmit={handleSubmit}>
-            <input
-                type="text"
-                id="text"
-                bind:value={newTaskText}
-                class="w-full border-2 text-[#242424] border-gray-300 rounded-lg p-2 my-4"
-                placeholder="Add a new task..."
-            />
-            <button type="submit">
-                <img
-                    src="../assets/add.png"
-                    alt="Add"
-                    class="absolute right-5 top-7 w-5 h-5 cursor-pointer"
-                />
-            </button>
-        </form>
+<div class="flex flex-col gap-8 my-8 pb-8">
+    {#each tasks as task}
+        <div
+            class="flex items-center justify-between bg-white text-[#242424] p-4 rounded-lg shadow-md"
+        >
+            <div class="flex gap-2 flex-grow">
+                <div class="flex items-center justify-center">
+                    <input
+                        type="checkbox"
+                        class="cursor-pointer"
+                        checked={task.done}
+                        onchange={() => toggleDone(task)}
+                    />
+                </div>
+                {#if editingTaskId === task.id}
+                    <input
+                        class="border border-gray-300 rounded px-2 py-1"
+                        bind:value={editedText}
+                        onkeydown={(e) => handleEditSubmit(task.id, e)}
+                        onblur={() => finishEditing(task.id, editedText)}
+                    />
+                {:else}
+                    <p class:done={task.done}>
+                        {task.text}
+                    </p>
+                {/if}
+            </div>
 
-        <ul class="mb-8">
-            {#each todos as todo}
-                <li>
-                    <TodoItem {todo} />
-                </li>
-            {:else}
-                <p class="font-semibold text-[#242424]">Loading ...</p>
-            {/each}
-        </ul>
-    </div>
-    <div class="text-[#242424] text-left py-12 absolute bottom-0">
-        <p class="font-semibold text-[#242424]">Pending Tasks: 3</p>
-    </div>
+            <div class="flex gap-2">
+                {#if !task.done && editingTaskId !== task.id}
+                    <button type="button" onclick={() => startEditing(task.id)}>
+                        <img
+                            src={editImg}
+                            alt="Edit"
+                            class="w-5 h-5 cursor-pointer"
+                        />
+                    </button>
+                {/if}
+                <button type="button" onclick={() => deleteTask(task.id)}>
+                    <img
+                        src={deleteImg}
+                        alt="Delete"
+                        class="w-5 h-5 cursor-pointer"
+                    />
+                </button>
+            </div>
+        </div>
+    {:else}
+        <div class="text-center text-gray-500 py-12">
+            <p class="text-xl font-semibold">🎉 All tasks completed!</p>
+            <p class="text-sm mt-2">Take a break, you deserve it</p>
+        </div>
+    {/each}
 </div>
+
+<style>
+    .done {
+        text-decoration: line-through;
+    }
+</style>
